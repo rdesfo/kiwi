@@ -22,9 +22,24 @@ class TestBootImageKiwi(object):
             self.xml_state, 'some-target-dir', 'system-directory'
         )
 
-    def test_prepare(self):
-        # just pass, there is nothing we need to do for dracut here
+    @patch('kiwi.boot.image.dracut.SystemSetup')
+    @patch('kiwi.boot.image.dracut.Profile')
+    def test_prepare(self, mock_profile, mock_setup):
+        setup = mock.Mock()
+        profile = mock.Mock()
+        mock_profile.return_value = profile
+        mock_setup.return_value = setup
         self.boot_image.prepare()
+        setup.import_shell_environment.assert_called_once_with(profile)
+        assert self.boot_image.dracut_options == [
+            '--include', 'system-directory/.profile', '/.profile'
+        ]
+
+    def test_include_file(self):
+        self.boot_image.include_file('system-directory/etc/foo')
+        assert self.boot_image.dracut_options == [
+            '--include', 'system-directory/etc/foo', '/etc/foo'
+        ]
 
     @patch('kiwi.boot.image.dracut.Kernel')
     @patch('kiwi.boot.image.dracut.Command.run')
@@ -37,12 +52,16 @@ class TestBootImageKiwi(object):
         kernel_details.version = '1.2.3'
         kernel.get_kernel = mock.Mock(return_value=kernel_details)
         mock_kernel.return_value = kernel
+        self.boot_image.include_file('system-directory/etc/foo')
+        self.boot_image.include_file('/system-directory/var/lib/bar')
         self.boot_image.create_initrd()
         assert mock_command.call_args_list == [
             call([
                 'chroot', 'system-directory',
                 'dracut', '--force', '--no-hostonly',
                 '--no-hostonly-cmdline', '--xz',
+                '--include', 'system-directory/etc/foo', '/etc/foo',
+                '--include', '/system-directory/var/lib/bar', '/var/lib/bar',
                 'LimeJeOS-openSUSE-13.2.x86_64-1.13.2.initrd.xz', '1.2.3'
             ]),
             call([

@@ -672,24 +672,26 @@ class DiskBuilder(object):
                 config.write(entry + os.linesep)
 
     def _write_partition_id_config_to_boot_image(self):
-        if self.initrd_system == 'kiwi':
-            log.info('Creating config.partids in boot system')
-            filename = ''.join(
-                [self.boot_image.boot_root_directory, '/config.partids']
-            )
-            partition_id_map = self.disk.get_public_partition_id_map()
-            with open(filename, 'w') as partids:
-                for id_name, id_value in list(partition_id_map.items()):
-                    partids.write('{0}="{1}"{2}'.format(
-                        id_name, id_value, os.linesep)
-                    )
+        log.info('Creating config.partids in boot system')
+        filename = ''.join(
+            [self.boot_image.boot_root_directory, '/config.partids']
+        )
+        partition_id_map = self.disk.get_public_partition_id_map()
+        with open(filename, 'w') as partids:
+            for id_name, id_value in list(partition_id_map.items()):
+                partids.write('{0}="{1}"{2}'.format(
+                    id_name, id_value, os.linesep)
+                )
+        self.boot_image.include_file(filename)
 
     def _write_raid_config_to_boot_image(self):
         if self.mdraid:
             log.info('Creating etc/mdadm.conf in boot system')
-            self.raid_root.create_raid_config(
-                self.boot_image.boot_root_directory + '/etc/mdadm.conf'
+            filename = ''.join(
+                [self.boot_image.boot_root_directory, '/etc/mdadm.conf']
             )
+            self.raid_root.create_raid_config(filename)
+            self.boot_image.include_file(filename)
 
     def _write_crypttab_to_system_image(self):
         if self.luks:
@@ -767,12 +769,13 @@ class DiskBuilder(object):
     def _write_recovery_metadata_to_boot_image(self):
         if os.path.exists(self.root_dir + '/recovery.partition.size'):
             log.info('Copying recovery metadata to boot image')
-            Command.run(
-                [
-                    'cp', self.root_dir + '/recovery.partition.size',
-                    self.boot_image.boot_root_directory
-                ]
+            recovery_metadata = ''.join(
+                [self.root_dir, '/recovery.partition.size']
             )
+            Command.run(
+                ['cp', recovery_metadata, self.boot_image.boot_root_directory]
+            )
+            self.boot_image.include_file(recovery_metadata)
 
     def _write_bootloader_config_to_system_image(self, device_map):
         if self.bootloader is not 'custom':

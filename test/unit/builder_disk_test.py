@@ -441,11 +441,14 @@ class TestDiskBuilder(object):
                 'boot/*', 'boot/.*', 'boot/efi/*', 'boot/efi/.*'
             ])
         assert mock_open.call_args_list == [
+            call('boot_dir/config.partids', 'w'),
             call('root_dir/boot/mbrid', 'w'),
             call('/dev/some-loop', 'wb'),
             call('boot_dir_kiwi/config.partids', 'w')
         ]
         assert self.file_mock.write.call_args_list == [
+            call('kiwi_BootPart="1"\n'),
+            call('kiwi_RootPart="1"\n'),
             call('0x0f0f0f0f\n'),
             call(bytes(b'\x0f\x0f\x0f\x0f')),
             call('kiwi_BootPart="1"\n'),
@@ -462,6 +465,10 @@ class TestDiskBuilder(object):
         self.setup.export_package_verification.assert_called_once_with(
             'target_dir'
         )
+        assert self.boot_image_task.include_file.call_args_list == [
+            call('boot_dir/config.partids'),
+            call('root_dir/recovery.partition.size')
+        ]
 
     @patch('kiwi.builder.disk.FileSystem')
     @patch_open
