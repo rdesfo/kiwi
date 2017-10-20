@@ -19,6 +19,8 @@ install() {
         e2fsck btrfsck xfs_repair \
         fbiterm
     inst_simple \
+        "$moddir/kiwi-lib.sh" "/lib/kiwi-lib.sh"
+    inst_simple \
         "$moddir/kiwi-partitions-lib.sh" "/lib/kiwi-partitions-lib.sh"
     inst_simple \
         "$moddir/kiwi-filesystem-lib.sh" "/lib/kiwi-filesystem-lib.sh"
