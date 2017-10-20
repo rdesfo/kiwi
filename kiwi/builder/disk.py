@@ -326,8 +326,8 @@ class DiskBuilder(object):
 
         self._write_generic_fstab_to_system_image(device_map)
 
-        if self.root_filesystem_is_overlay:
-            self._create_dracut_overlay_config()
+        if self.initrd_system == 'dracut':
+            self._create_dracut_config()
 
         # create initrd cpio archive
         self.boot_image.create_initrd(self.mbrid)
@@ -658,17 +658,24 @@ class DiskBuilder(object):
 
         return self.disk.get_device()
 
-    def _create_dracut_overlay_config(self):
-        overlay_config_file = ''.join(
-            [self.root_dir, '/etc/dracut.conf.d/02-overlay.conf']
+    def _create_dracut_config(self):
+        dracut_config_file = ''.join(
+            [self.root_dir, '/etc/dracut.conf.d/02-kiwi.conf']
         )
-        overlay_config = [
-            'add_dracutmodules+=" kiwi-overlay "',
+        dracut_config = [
             'hostonly="no"',
             'dracut_rescue_image="no"'
         ]
-        with open(overlay_config_file, 'w') as config:
-            for entry in overlay_config:
+        dracut_modules = ['kiwi-lib']
+        if self.root_filesystem_is_overlay:
+            dracut_modules.append('kiwi-overlay')
+        if self.build_type_name == 'oem':
+            dracut_modules.append('kiwi-repart')
+        dracut_config.append(
+            'add_dracutmodules+=" {0} "'.format(' '.join(dracut_modules))
+        )
+        with open(dracut_config_file, 'w') as config:
+            for entry in dracut_config:
                 config.write(entry + os.linesep)
 
     def _write_partition_id_config_to_boot_image(self):

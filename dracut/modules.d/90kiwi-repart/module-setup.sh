@@ -8,7 +8,7 @@ depends() {
 
 # called by dracut
 installkernel() {
-    instmods squashfs loop overlay
+    instmods squashfs loop
 }
 
 # called by dracut

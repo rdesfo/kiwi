@@ -443,6 +443,7 @@ class TestDiskBuilder(object):
         assert mock_open.call_args_list == [
             call('boot_dir/config.partids', 'w'),
             call('root_dir/boot/mbrid', 'w'),
+            call('root_dir/etc/dracut.conf.d/02-kiwi.conf', 'w'),
             call('/dev/some-loop', 'wb'),
             call('boot_dir_kiwi/config.partids', 'w')
         ]
@@ -450,6 +451,9 @@ class TestDiskBuilder(object):
             call('kiwi_BootPart="1"\n'),
             call('kiwi_RootPart="1"\n'),
             call('0x0f0f0f0f\n'),
+            call('hostonly="no"\n'),
+            call('dracut_rescue_image="no"\n'),
+            call('add_dracutmodules+=" kiwi-lib kiwi-repart "\n'),
             call(bytes(b'\x0f\x0f\x0f\x0f')),
             call('kiwi_BootPart="1"\n'),
             call('kiwi_RootPart="1"\n')
@@ -537,7 +541,10 @@ class TestDiskBuilder(object):
         tempfile.name = 'tempname'
         mock_temp.return_value = tempfile
         mock_exists.return_value = True
+        self.disk_builder.initrd_system = 'dracut'
+
         self.disk_builder.create_disk()
+
         assert mock_squashfs.call_args_list == [
             call(device_provider=None, root_dir='root_dir'),
             call(device_provider=None, root_dir='root_dir')
@@ -550,17 +557,19 @@ class TestDiskBuilder(object):
             ], filename='tempname')
         ]
         self.disk.create_root_readonly_partition.assert_called_once_with(51)
-        assert mock_command.call_args_list.pop() == call(
+        assert mock_command.call_args_list[2] == call(
             ['dd', 'if=tempname', 'of=/dev/readonly-root-device']
         )
         assert self.file_mock.write.call_args_list == [
             call('kiwi_BootPart="1"\n'),
             call('kiwi_RootPart="1"\n'),
             call('0x0f0f0f0f\n'),
-            call('add_dracutmodules+=" kiwi-overlay "\n'),
             call('hostonly="no"\n'),
             call('dracut_rescue_image="no"\n'),
-            call(b'\x0f\x0f\x0f\x0f')
+            call('add_dracutmodules+=" kiwi-lib kiwi-overlay kiwi-repart "\n'),
+            call(b'\x0f\x0f\x0f\x0f'),
+            call('kiwi_BootPart="1"\n'),
+            call('kiwi_RootPart="1"\n')
         ]
 
     @patch('kiwi.builder.disk.FileSystem')
