@@ -1,0 +1,7 @@
+<directory name="test-image-panda-oem" rev="7" srcmd5="fb43ebb1b719f5dcc9cf5fe84c304fcc" vrev="7">
+  <entry md5="d084ad3f1b59cbcbfa5dcb130c72d3e7" mtime="1504794870" name="appliance.kiwi" size="7661" />
+  <entry md5="5981217ca0e94df3b7181a589bc0822b" mtime="1459503083" name="config.sh" size="4880" />
+  <entry md5="f32793350848f18d1f7997d0f86ea8cd" mtime="1459503083" name="uboot-image-panda-install" size="7766" />
+  <entry md5="c7e5348c28977566c0db198b65903fa6" mtime="1459503084" name="uboot-image-panda-setup" size="15310" />
+  <entry md5="22836158457bcb3f19868be9d6a443a7" mtime="1459503084" name="uboot-setup-panda.tgz" size="4903" />
+</directory>
