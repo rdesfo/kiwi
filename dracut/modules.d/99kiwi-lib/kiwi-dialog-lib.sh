@@ -1,25 +1,25 @@
 #!/bin/bash
 type getarg >/dev/null 2>&1 || . /lib/dracut-lib.sh
 
-function runDialog {
+function run_dialog {
     # """
     # Run the dialog program via the systemd service either in a
     # framebuffer terminal or on the console. The return code of
     # the function is the return code of the dialog call. The
     # output of the dialog call is stored in a file and can be
-    # one time read via the getDialogResult function
+    # one time read via the get_dialog_result function
     # """
     local dialog_result=/tmp/dialog_result
     local dialog_exit_code=/tmp/dialog_code
     {
-        echo "dialog $@ 2>$dialog_result"
+        echo "dialog $* 2>$dialog_result"
         echo -n \$? >$dialog_exit_code
     } >/bin/dracut-interactive
     _run_interactive
-    return $(cat $dialog_exit_code)
+    return "$(cat $dialog_exit_code)"
 }
 
-function getDialogResult {
+function get_dialog_result {
     local dialog_result=/tmp/dialog_result
     [ -e "${dialog_result}" ] && cat ${dialog_result}; rm -f ${dialog_result}
 }

@@ -14,7 +14,7 @@ export partedEndSectors
 #======================================
 # Library Methods
 #--------------------------------------
-function createPartedPartitions {
+function create_parted_partitions {
     # """
     # create partitions using parted
     # """
@@ -30,8 +30,8 @@ function createPartedPartitions {
     local cmd_list
     local cmd
 
-    _partedInit ${disk_device}
-    _partedSectorInit ${disk_device}
+    _parted_init "${disk_device}"
+    _parted_sector_init "${disk_device}"
 
     # put partition setup in a command list(cmd_list)
     for cmd in ${partition_setup};do
@@ -48,7 +48,7 @@ function createPartedPartitions {
             partid=${cmd_list[$index + 1]}
             partid=$((partid / 1))
             commands="${commands} rm $partid"
-            _partedWrite "${disk_device}" "${commands}"
+            _parted_write "${disk_device}" "${commands}"
             unset commands
         ;;
         "n")
@@ -63,49 +63,51 @@ function createPartedPartitions {
                 part_name=$(echo ${part_name} | cut -f2 -d:)
             fi
             if [ "${part_start_cyl}" = "1" ];then
-                part_start_cyl=$(echo ${partedStartSectors} |\
+                part_start_cyl=$(echo "${partedStartSectors}" |\
                     cut -f ${partid} -d:
                 )
             fi
-            if [ ${part_start_cyl} = "." ];then
+            if [ "${part_start_cyl}" = "." ];then
                 # start is next cylinder according to previous partition
                 part_start_cyl=$((partid - 1))
                 if [ ${part_start_cyl} -gt 0 ];then
-                    part_start_cyl=$(echo ${partedEndSectors} |\
+                    part_start_cyl=$(echo "${partedEndSectors}" |\
                         cut -f ${part_start_cyl} -d:
                     )
                 else
-                    part_start_cyl=$(echo ${partedStartSectors} |\
+                    part_start_cyl=$(echo "${partedStartSectors}" |\
                         cut -f ${partid} -d:
                     )
                 fi
             fi
             part_stop_cyl=${cmd_list[$index + 4]}
-            if [ ${part_stop_cyl} = "." ];then
+            if [ "${part_stop_cyl}" = "." ];then
                 # use rest of the disk for partition end
                 part_stop_cyl=${partedCylCount}
-            elif echo ${part_stop_cyl} | grep -qi M;then
+            elif echo "${part_stop_cyl}" | grep -qi M;then
                 # calculate stopp cylinder from size
                 part_stop_cyl=$((partid - 1))
                 if [ ${part_stop_cyl} -gt 0 ];then
-                    part_stop_cyl=$(_partedEndCylinder ${part_stop_cyl})
+                    part_stop_cyl=$(_parted_end_cylinder ${part_stop_cyl})
                 fi
-                local part_size_mbytes=$(
-                    echo ${cmd_list[$index + 4]} | cut -f1 -dM | tr -d +
+                local part_size_mbytes
+                part_size_mbytes=$(
+                    echo "${cmd_list[$index + 4]}" | cut -f1 -dM | tr -d +
                 )
-                local part_size_cyl=$(
-                    _partedMBToCylinder ${part_size_mbytes}
+                local part_size_cyl
+                part_size_cyl=$(
+                    _parted_mb_to_cylinder "${part_size_mbytes}"
                 )
                 part_stop_cyl=$((1 + part_stop_cyl + part_size_cyl))
-                if [ ${part_stop_cyl} -gt ${partedCylCount} ];then
+                if [ "${part_stop_cyl}" -gt "${partedCylCount}" ];then
                     # given size is out of bounds, reduce to end of disk
                     part_stop_cyl=${partedCylCount}
                 fi
             fi
             commands="${commands} mkpart ${part_name}"
             commands="${commands} ${part_start_cyl} ${part_stop_cyl}"
-            _partedWrite "${disk_device}" "${commands}"
-            _partedSectorInit ${disk_device}
+            _parted_write "${disk_device}" "${commands}"
+            _parted_sector_init "${disk_device}"
             unset commands
         ;;
         "t")
@@ -127,17 +129,17 @@ function createPartedPartitions {
                 flagok=0
             fi
             if [ ! "${partedTableType}" = "gpt" ] && [ ${flagok} = 1 ];then
-                _partedWrite "${disk_device}" "${commands}"
+                _parted_write "${disk_device}" "${commands}"
             fi
             unset commands
         ;;
         esac
         index=$((index + 1))
     done
-    partprobe ${disk_device}
+    partprobe "${disk_device}"
 }
 
-function createFdasdPartitions {
+function create_fdasd_partitions {
     # """
     # create partitions using fdasd (s390)
     # """
@@ -148,30 +150,30 @@ function createFdasdPartitions {
     local ignore_cmd_once=0
     local cmd
     for cmd in ${partition_setup};do
-        if [ ${ignore_cmd} = 1 ] && echo ${cmd} | grep -qE '[dntwq]';then
+        if [ "${ignore_cmd}" = 1 ] && echo "${cmd}" | grep -qE '[dntwq]';then
             ignore_cmd=0
-        elif [ ${ignore_cmd} = 1 ];then
+        elif [ "${ignore_cmd}" = 1 ];then
             continue
         fi
-        if [ ${ignore_cmd_once} = "1" ];then
+        if [ "${ignore_cmd_once}" = "1" ];then
             ignore_cmd_once=0
             continue
         fi
-        if [ ${cmd} = "a" ];then
+        if [ "${cmd}" = "a" ];then
             ignore_cmd=1
             continue
         fi
-        if [[ ${cmd} =~ ^p: ]];then
+        if [[ "${cmd}" =~ ^p: ]];then
             ignore_cmd_once=1
             continue
         fi
-        if [ ${cmd} = "83" ] || [ ${cmd} = "8e" ];then
+        if [ "${cmd}" = "83" ] || [ "${cmd}" = "8e" ];then
             cmd=1
         fi
-        if [ ${cmd} = "82" ];then
+        if [ "${cmd}" = "82" ];then
             cmd=2
         fi
-        if [ ${cmd} = "." ];then
+        if [ "${cmd}" = "." ];then
             echo >> ${partition_setup_file}
             continue
         fi
@@ -179,17 +181,66 @@ function createFdasdPartitions {
     done
     echo "w" >> ${partition_setup_file}
     echo "q" >> ${partition_setup_file}
-    if ! fdasd ${disk_device} < ${partition_setup_file} 1>&2;then
+    if ! fdasd "${disk_device}" < ${partition_setup_file} 1>&2;then
         die "Failed to create partition table"
     fi
-    partprobe ${disk_device}
+    partprobe "${disk_device}"
 }
 
+function get_partition_kbsize {
+    echo $(($(blockdev --getsize64 "$1") / 1024))
+}
+
+function get_free_disk_bytes {
+    local disk=$1
+    local pt_table_type
+    local disk_bytes
+    local max_dos_disk
+    pt_table_type=$(get_partition_table_type "${disk}")
+    disk_bytes=$(blockdev --getsize64 "${disk}")
+    # max msdos table geometry is at 2TB - 512
+    # max sector count taken from parted
+    max_dos_disk=$((4294967295 * 512))
+    if \
+        [ "${pt_table_type}" = "dos" ] && \
+        [ "${disk_bytes}" -gt "${max_dos_disk}" ]
+    then
+        warn "msdos table allows a max disk size of 2TB"
+        warn "disk expansion will be truncated to 2TB"
+        disk_bytes=${max_dos_disk}
+    fi
+    local rest_bytes
+    rest_bytes=${disk_bytes}
+    local part_bytes=0
+    for part in $(
+        lsblk -r -o NAME,TYPE "${disk}" | grep part | cut -f1 -d ' '
+    );do
+        part_bytes=$((part_bytes + $(blockdev --getsize64 /dev/"${part}")))
+    done
+    rest_bytes=$((rest_bytes - part_bytes))
+    echo ${rest_bytes}
+}
+
+function get_partition_table_type {
+    blkid -s PTTYPE -o value "$1"
+}
+
+function relocate_gpt_at_end_of_disk {
+    local cmd
+    local cmd_file=/part.input
+    rm -f ${cmd_file} && for cmd in x e w y; do
+        echo $cmd >> ${cmd_file}
+    done
+    if ! gdisk "$1" < ${cmd_file} 1>&2; then
+        warn "Failed to write backup GPT at end of disk !"
+        warn "This could break the resize of the image"
+    fi
+}
 
 #======================================
 # Methods considered private
 #--------------------------------------
-function _partedInit {
+function _parted_init {
     # """
     # initialize current partition table output
     # as well as the number of cylinders and the
@@ -197,17 +248,23 @@ function _partedInit {
     # """
     local disk_device=$1
     local IFS=""
-    local parted=$(
-        parted -m -s ${disk_device} unit cyl print | grep -v Warning:
+    local parted
+    local header
+    local ccount
+    local cksize
+    local diskhd
+    local plabel
+    parted=$(
+        parted -m -s "${disk_device}" unit cyl print | grep -v Warning:
     )
-    local header=$(echo ${parted} | head -n 3 | tail -n 1)
-    local ccount=$(
-        echo ${parted} | grep ^${disk_device} | cut -f 2 -d: | tr -d cyl
+    header=$(echo "${parted}" | head -n 3 | tail -n 1)
+    ccount=$(
+        echo "${parted}" | grep ^"${disk_device}" | cut -f 2 -d: | tr -d cyl
     )
-    local cksize=$(echo ${header} | cut -f4 -d: | cut -f1 -dk)
-    local diskhd=$(echo ${parted} | head -n 3 | tail -n 2 | head -n 1)
-    local plabel=$(echo ${diskhd} | cut -f6 -d:)
-    if [[ ${plabel} =~ gpt ]];then
+    cksize=$(echo "${header}" | cut -f4 -d: | cut -f1 -dk)
+    diskhd=$(echo "${parted}" | head -n 3 | tail -n 2 | head -n 1)
+    plabel=$(echo "${diskhd}" | cut -f6 -d:)
+    if [[ "${plabel}" =~ gpt ]];then
         plabel=gpt
     fi
     export partedTableType=${plabel}
@@ -216,7 +273,7 @@ function _partedInit {
     export partedCylKSize=${cksize}
 }
 
-function _partedSectorInit {
+function _parted_sector_init {
     # """
     # calculate aligned start/end sectors of
     # the current table.
@@ -228,12 +285,16 @@ function _partedSectorInit {
     # kiwi_startsector
     #
     # """
+    declare kiwi_align=${kiwi_align}
+    declare kiwi_sectorsize=${kiwi_sectorsize}
+    declare kiwi_startsector=${kiwi_startsector}
     local disk_device=$1
     local s_start
     local s_stopp
     local align=1048576
     local sector_size=512
     local sector_start=2048
+    local part
     [ ! -z "${kiwi_align}" ] && align=${kiwi_align}
     [ ! -z "${kiwi_sectorsize}" ] && sector_size=${kiwi_sectorsize}
     [ ! -z "${kiwi_startsector}" ] && sector_start=${kiwi_startsector}
@@ -242,12 +303,12 @@ function _partedSectorInit {
     unset partedStartSectors
     unset partedEndSectors
 
-    for i in $(
-        parted -m -s ${disk_device} unit s print |\
-        grep -E ^[1-9]+:| cut -f2-3 -d: | tr -d s
+    for part in $(
+        parted -m -s "${disk_device}" unit s print |\
+        grep -E "^[1-9]+:" | cut -f2-3 -d: | tr -d s
     );do
-        s_start=$(echo $i | cut -f1 -d:)
-        s_stopp=$(echo $i | cut -f2 -d:)
+        s_start=$(echo "${part}" | cut -f1 -d:)
+        s_stopp=$(echo "${part}" | cut -f2 -d:)
         if [ -z "${partedStartSectors}" ];then
             partedStartSectors=${s_start}s
         else
@@ -265,19 +326,21 @@ function _partedSectorInit {
     fi
 }
 
-function _partedEndCylinder {
+function _parted_end_cylinder {
     # """
     # return end cylinder of given partition, next
     # partition must start at return value plus 1
     # """
     local partition_id=$(($1 + 3))
     local IFS=""
-    local header=$(echo ${partedOutput} | head -n ${partition_id} | tail -n 1)
-    local ccount=$(echo ${header} | cut -f3 -d: | tr -d cyl)
-    echo ${ccount}
+    local header
+    local ccount
+    header=$(echo "${partedOutput}" | head -n "${partition_id}" | tail -n 1)
+    ccount=$(echo "${header}" | cut -f3 -d: | tr -d cyl)
+    echo "${ccount}"
 }
 
-function _partedMBToCylinder {
+function _parted_mb_to_cylinder {
     # """
     # convert partition size in MB to cylinder count
     # """
@@ -285,21 +348,22 @@ function _partedMBToCylinder {
     # bc truncates to zero decimal places, which results in
     # a partition that is slightly smaller than the requested
     # size. Add one cylinder to compensate.
-    local required_cylinders=$(
+    local required_cylinders
+    required_cylinders=$(
         echo "scale=0; ${sizeBytes} / (${partedCylKSize} * 1000) + 1" | bc
     )
-    echo ${required_cylinders}
+    echo "${required_cylinders}"
 }
 
-function _partedWrite {
+function _parted_write {
     # """
     # call parted with current command queue.
     # and reinitialize the new table data
     # """
     local disk_device=$1
     local commands=$2
-    if ! parted -a cyl -m -s ${disk_device} unit cyl ${commands};then
+    if ! parted -a cyl -m -s "${disk_device}" unit cyl "${commands}";then
         die "Failed to create partition table"
     fi
-    _partedInit ${disk_device}
+    _parted_init "${disk_device}"
 }

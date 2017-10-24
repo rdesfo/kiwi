@@ -1,12 +1,12 @@
 #!/bin/bash
 type getarg >/dev/null 2>&1 || . /lib/dracut-lib.sh
 
-function resizeFilesystem {
+function resize_filesystem {
     local device=$1
     local resize_fs
-    local check
     local mpoint=/fs-resize
-    local fstype=$(probeFileSystem ${device})
+    local fstype
+    fstype=$(probe_filesystem "${device}")
     case ${fstype} in
     ext2|ext3|ext4)
         resize_fs="resize2fs -f -p ${device}"
@@ -27,19 +27,20 @@ function resizeFilesystem {
         return
     ;;
     esac
-    if _is_ramdisk_device ${device}; then
-        checkFilesystem ${device}
+    if _is_ramdisk_device "${device}"; then
+        checkFilesystem "${device}"
     fi
     info "Resizing ${fstype} filesystem on ${device}..."
-    if ! eval ${resize_fs}; then
+    if ! eval "${resize_fs}"; then
         die "Failed to resize filesystem"
     fi
 }
 
-function checkFilesystem {
+function check_filesystem {
     local device=$1
     local check_fs
-    local fstype=$(probeFileSystem ${device})
+    local fstype
+    fstype=$(probe_filesystem "${device}")
     case ${fstype} in
     ext2|ext3|ext4)
         check_fs="e2fsck -p -f ${device}"
@@ -57,14 +58,15 @@ function checkFilesystem {
     ;;
     esac
     info "Checking ${fstype} filesystem on ${device}..."
-    if ! eval ${check_fs}; then
+    if ! eval "${check_fs}"; then
         die "Failed to check filesystem"
     fi
 }
 
-function probeFileSystem {
+function probe_filesystem {
     local device=$1
-    local fstype=$(blkid ${device} -s TYPE -o value)
+    local fstype
+    fstype=$(blkid "${device}" -s TYPE -o value)
     if [ -z "${fstype}" ];then
         fstype=unknown
     fi
@@ -79,7 +81,7 @@ function probeFileSystem {
 #--------------------------------------
 function _is_ramdisk_device {
     local device=$1
-    if echo $device | grep -qi "/dev/ram";then
+    if echo "${device}" | grep -qi "/dev/ram";then
         return 1
     fi
     return 0

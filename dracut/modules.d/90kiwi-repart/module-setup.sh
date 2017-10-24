@@ -13,6 +13,7 @@ installkernel() {
 
 # called by dracut
 install() {
-    inst_hook pre-mount 20 "$moddir/kiwi-repart-disk.sh"
+    declare moddir=${moddir}
+    inst_hook pre-mount 20 "${moddir}/kiwi-repart-disk.sh"
     dracut_need_initqueue
 }
