@@ -689,7 +689,9 @@ class DiskBuilder(object):
                 partids.write('{0}="{1}"{2}'.format(
                     id_name, id_value, os.linesep)
                 )
-        self.boot_image.include_file(filename)
+        self.boot_image.include_file(
+            os.sep + os.path.basename(filename)
+        )
 
     def _write_raid_config_to_boot_image(self):
         if self.mdraid:
@@ -698,7 +700,9 @@ class DiskBuilder(object):
                 [self.boot_image.boot_root_directory, '/etc/mdadm.conf']
             )
             self.raid_root.create_raid_config(filename)
-            self.boot_image.include_file(filename)
+            self.boot_image.include_file(
+                os.sep + os.path.basename(filename)
+            )
 
     def _write_crypttab_to_system_image(self):
         if self.luks:
@@ -782,7 +786,9 @@ class DiskBuilder(object):
             Command.run(
                 ['cp', recovery_metadata, self.boot_image.boot_root_directory]
             )
-            self.boot_image.include_file(recovery_metadata)
+            self.boot_image.include_file(
+                os.sep + os.path.basename(recovery_metadata)
+            )
 
     def _write_bootloader_config_to_system_image(self, device_map):
         if self.bootloader is not 'custom':

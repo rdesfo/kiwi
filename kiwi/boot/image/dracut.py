@@ -40,13 +40,8 @@ class BootImageDracut(BootImageBase):
         self.dracut_options = []
 
     def include_file(self, filename):
-        self.dracut_options.append('--include')
+        self.dracut_options.append('--install')
         self.dracut_options.append(filename)
-        self.dracut_options.append(
-            os.path.normpath(
-                filename.replace(self.boot_root_directory, os.sep)
-            ).replace(os.sep + os.sep, os.sep)
-        )
 
     def prepare(self):
         """
@@ -59,8 +54,7 @@ class BootImageDracut(BootImageBase):
             self.xml_state, self.boot_root_directory
         )
         setup.import_shell_environment(profile)
-        self.dracut_options.append('--include')
-        self.dracut_options.append(self.boot_root_directory + '/.profile')
+        self.dracut_options.append('--install')
         self.dracut_options.append('/.profile')
 
     def create_initrd(self, mbrid=None):

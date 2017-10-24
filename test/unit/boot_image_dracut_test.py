@@ -32,13 +32,13 @@ class TestBootImageKiwi(object):
         self.boot_image.prepare()
         setup.import_shell_environment.assert_called_once_with(profile)
         assert self.boot_image.dracut_options == [
-            '--include', 'system-directory/.profile', '/.profile'
+            '--install', '/.profile'
         ]
 
     def test_include_file(self):
-        self.boot_image.include_file('system-directory/etc/foo')
+        self.boot_image.include_file('foo')
         assert self.boot_image.dracut_options == [
-            '--include', 'system-directory/etc/foo', '/etc/foo'
+            '--install', 'foo'
         ]
 
     @patch('kiwi.boot.image.dracut.Kernel')
@@ -60,8 +60,8 @@ class TestBootImageKiwi(object):
                 'chroot', 'system-directory',
                 'dracut', '--force', '--no-hostonly',
                 '--no-hostonly-cmdline', '--xz',
-                '--include', 'system-directory/etc/foo', '/etc/foo',
-                '--include', '/system-directory/var/lib/bar', '/var/lib/bar',
+                '--install', 'system-directory/etc/foo',
+                '--install', '/system-directory/var/lib/bar',
                 'LimeJeOS-openSUSE-13.2.x86_64-1.13.2.initrd.xz', '1.2.3'
             ]),
             call([

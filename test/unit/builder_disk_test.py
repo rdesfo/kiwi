@@ -470,8 +470,8 @@ class TestDiskBuilder(object):
             'target_dir'
         )
         assert self.boot_image_task.include_file.call_args_list == [
-            call('boot_dir/config.partids'),
-            call('root_dir/recovery.partition.size')
+            call('/config.partids'),
+            call('/recovery.partition.size')
         ]
 
     @patch('kiwi.builder.disk.FileSystem')
